@@ -14,7 +14,7 @@ class SignalSimulator:
 
         hip = hip_range/2 * np.sin(2 * np.pi * 1 * self.t)
         
-        normal_range = 30  # normal hip range of motion in degrees
+        normal_range = 30  
         hip_reference = normal_range/2 * np.sin(2 * np.pi * 1 * self.t)
 
         return {

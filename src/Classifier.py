@@ -1,6 +1,6 @@
 class Classifier:
 
-    def classify(self, features):
+    def classify(self, features): # me7tageen n2aked el thresholds
 
         heel = features["heel_peak"]
         toe = features["toe_peak"]

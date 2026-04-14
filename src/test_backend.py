@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from main import main as GaitPipeline
 
-# create pipeline
+# create pipeline --> dah ll testing mn gher ui
 pipeline = GaitPipeline()
 
 # test parameters
