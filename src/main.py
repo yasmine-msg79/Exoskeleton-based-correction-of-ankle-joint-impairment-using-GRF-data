@@ -26,19 +26,19 @@ class main:
         
         phase_states = self.phase_detector.getPhasestates()
 
-        label = self.classifier.classify(features)
+        labels = self.classifier.classify(features)
 
-        correction_text = self.controller.suggest(label)
+        corrections, hip_related = self.controller.suggest(labels)
 
-        corrected_hip = self.controller.apply_correction(signals, label)
+        corrected_hip = self.controller.apply_correction(signals, hip_related)
 
         results = {
             "signals": signals, # the 3 original signals (heel, toe, hip)
             "features": features, # the extracted features from the signals
             "phases": phase_ranges, # the detected gait phases (stance, swing, heel strike, toe off)
             "phase_states": phase_states, # the states of each gait phase
-            "classification": label, # verdict (normal, knee impairmant, hip impairment)
-            "correction": correction_text, # the suggested correction based on the classification
+            "classification": labels, # verdict (normal, knee impairmant, hip impairment)
+            "correction": corrections, # the suggested correction based on the classification
             "corrected_hip": corrected_hip # corrected hip signal after applying the suggested correction
         }
 

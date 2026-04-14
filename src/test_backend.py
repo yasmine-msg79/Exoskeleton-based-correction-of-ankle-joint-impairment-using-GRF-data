@@ -6,7 +6,7 @@ pipeline = GaitPipeline()
 
 # test parameters
 heel_peak = 1.0  # hena threshold 0.6 lazem yeb2a aktar
-toe_peak = 0.8 # hena threshold 0.6 lazem yeb2a aktar bardo
+toe_peak = 0.35 # hena threshold 0.6 lazem yeb2a aktar bardo
 hip_range = 15   # hena threshold 20 lazem yeb2a a2al mn 20 3ashan yeb2a hip impairment
 
 # run pipeline

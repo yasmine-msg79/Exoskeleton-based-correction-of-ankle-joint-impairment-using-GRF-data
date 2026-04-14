@@ -5,15 +5,30 @@ class Classifier:
         heel = features["heel_peak"]
         toe = features["toe_peak"]
         hip = features["hip_range"]
+        labels = []
 
-        if hip < 20 and heel < 0.6:
-            return "Hip + Knee Impairment"
+            # --- HIP RULES ---
+        if hip < 15:
+            labels.append("Severe hip mobility limitation")
+        elif hip < 25:
+            labels.append("Mild hip mobility limitation")
 
-        elif hip < 20:
-            return "Hip Impairment"
+        # --- HEEL RULES ---
+        if heel < 0.4:
+            labels.append("Reduced heel strike loading")
 
-        elif heel < 0.6 or toe < 0.6:
-            return "Knee Impairment"
+        # --- TOE RULES ---
+        if toe < 0.4:
+            labels.append("Reduced push-off force")
 
-        else:
-            return "Normal"
+        # --- COMBINATION RULES (IMPORTANT) ---
+
+        if hip < 15 and heel < 0.4:
+            labels.append("Stance phase + hip mobility deficit")
+
+        if heel < 0.4 and toe < 0.4:
+            labels.append("Global gait force reduction")
+
+        if len(labels) == 0:
+            labels.append("Normal")
+        return labels
