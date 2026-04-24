@@ -1,16 +1,20 @@
 import numpy as np
-class FeatureExtractor:
 
+class FeatureExtractor:
 
     def extract(self, signals):
 
-        heel_peak = np.max(signals["heel"])
-        toe_peak = np.max(signals["toe"])
+        grf = signals["grf"]
 
-        hip_range = np.max(signals["hip_measured"]) - np.min(signals["hip_measured"])
+        mid = len(grf) // 2
+
+        first_peak = np.max(grf[:mid])
+        second_peak = np.max(grf[mid:])
+
+        impulse = np.trapezoid(grf)
 
         return {
-            "heel_peak": heel_peak,
-            "toe_peak": toe_peak,
-            "hip_range": hip_range
+            "first_peak": first_peak,
+            "second_peak": second_peak,
+            "impulse": impulse
         }

@@ -1,44 +1,101 @@
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-from main import main as GaitPipeline
 
-# create pipeline --> dah ll testing mn gher ui
-pipeline = GaitPipeline()
+from SignalReader import SignalReader
+from FeatureExtractor import FeatureExtractor
+from Interpreter import Interpreter
+from ReferenceBuilder import ReferenceBuilder
 
-# test parameters
-heel_peak = 1.0  # hena threshold 0.6 lazem yeb2a aktar
-toe_peak = 0.35 # hena threshold 0.6 lazem yeb2a aktar bardo
-hip_range = 15   # hena threshold 20 lazem yeb2a a2al mn 20 3ashan yeb2a hip impairment
+# =====================================================
+# FILES (LEFT ONLY)
+# =====================================================
+GRF_FILE = r"C:\Users\loq\Downloads\GRF_F_V_PRO_left.csv"
+META_FILE = r"C:\Users\loq\Downloads\GRF_metadata.csv"
 
-# run pipeline
-results = pipeline.run(heel_peak, toe_peak, hip_range)
+# =====================================================
+# INIT MODULES
+# =====================================================
+reader = SignalReader(GRF_FILE, META_FILE)
+extractor = FeatureExtractor()
+interpreter = Interpreter()
 
-signals = results["signals"]
-time = signals["time"]
-heel = signals["heel"]
-toe = signals["toe"]
-hip = signals["hip_measured"]
+# =====================================================
+# LOAD SAMPLE (WE WILL FORCE AN ANKLE CASE)
+# =====================================================
+def find_ankle_sample(reader):
+    for i in range(len(reader.grf_df)):
 
-corrected_hip = results["corrected_hip"]
+        sample = reader.get_sample(i)
+        label = sample["label"]   # already standardized
 
-# print backend outputs
-print("Features:", results["features"])
-print("Phases:", results["phases"])
-print("Classification:", results["classification"])
-print("Correction:", results["correction"])
+        if isinstance(label, str) and label.startswith("A"):
+            return i
 
-# plot signals
+    return None
+
+
+ankle_index = find_ankle_sample(reader)
+
+if ankle_index is None:
+    raise ValueError("No ankle sample found in dataset")
+
+sample = reader.get_sample(ankle_index)
+
+print("\nSelected sample index:", ankle_index)
+print("Class label:", sample["label"])
+print("Affected side:", sample["Affected_Limb"])
+
+# =====================================================
+# REFERENCE BUILDING (FROM HEALTHY ONLY)
+# =====================================================
+print("\nBuilding reference waveform from HC samples...")
+
+ref_builder = ReferenceBuilder()
+reference = ref_builder.build(reader)
+
+# =====================================================
+# FEATURE EXTRACTION
+# =====================================================
+features = extractor.extract(sample)
+
+print("\nExtracted features:")
+for k, v in features.items():
+    print(f"{k}: {v:.4f}")
+
+# =====================================================
+# INTERPRETATION (FORCED ANKLE CASE)
+# =====================================================
+forced_label = "ankle_impairment"
+
+result = interpreter.interpret(features, forced_label)
+
+print("\nInterpretation result:", result)
+
+# =====================================================
+# PLOTTING: SIGNAL vs REFERENCE
+# =====================================================
+t = sample["time"]
+grf = sample["grf"]
+
 plt.figure()
-plt.plot(time, heel, label="Heel")
-plt.plot(time, toe, label="Toe")
-plt.plot(time, hip, label="Hip")
+plt.plot(t, grf, label="Ankle Impaired GRF")
+plt.plot(t, reference, linestyle="--", label="Reference (Healthy Mean)")
+
+plt.title("GRF Signal vs Reference")
+plt.xlabel("Gait Cycle (%)")
+plt.ylabel("Force (BW-normalized)")
 plt.legend()
-plt.title("Simulated Gait Signals")
+plt.grid()
 plt.show()
 
-# plot correction
+# =====================================================
+# FEATURE VISUAL DEBUG (OPTIONAL BUT USEFUL)
+# =====================================================
 plt.figure()
-plt.plot(time, hip, label="Original Hip")
-plt.plot(time, corrected_hip, label="Corrected Hip")
-plt.legend()
-plt.title("Hip Correction")
+plt.bar(["First Peak", "Second Peak", "Impulse"],
+        [features["first_peak"], features["second_peak"], features["impulse"]])
+
+plt.title("Extracted Features")
+plt.grid()
 plt.show()
