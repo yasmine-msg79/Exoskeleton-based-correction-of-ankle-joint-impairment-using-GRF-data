@@ -7,11 +7,14 @@ from FeatureExtractor import FeatureExtractor
 from Interpreter import Interpreter
 from ReferenceBuilder import ReferenceBuilder
 
-# =====================================================
 # FILES (LEFT ONLY)
-# =====================================================
-GRF_FILE = r"C:\Users\loq\Downloads\GRF_F_V_PRO_left.csv"
-META_FILE = r"C:\Users\loq\Downloads\GRF_metadata.csv"
+
+# INSERT YOUR PERSONAL PATHS HERE
+# GRF_FILE = r"C:\Users\loq\Downloads\GRF_F_V_PRO_left.csv"
+# META_FILE = r"C:\Users\loq\Downloads\GRF_metadata.csv"
+
+GRF_FILE = r"D:\College\Year Four\Second Term\Rehab Project\Exoskeleton-based-correction-of-ankle-joint-impairment-using-GRF-data\\Data\\GRF_F_V_PRO_left.csv"
+META_FILE = r"D:\College\Year Four\Second Term\Rehab Project\Exoskeleton-based-correction-of-ankle-joint-impairment-using-GRF-data\\Data\\GRF_metadata.csv"
 
 # =====================================================
 # INIT MODULES
