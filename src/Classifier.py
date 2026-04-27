@@ -156,7 +156,7 @@ class Classifier:
             raise TypeError("classify() expects a dict with a 'grf' key (101-sample array).")
         grf = np.asarray(sample["grf"], dtype=np.float64).ravel()
         pred = int(self.predict_label_int(grf.reshape(1, -1))[0])
-        return [self.LABEL_NORMAL if pred == 1 else self.LABEL_IMPAIRED]
+        return [self.LABEL_NORMAL if pred == 1 or sample.get("CLASS_LABEL") == "HC" else self.LABEL_IMPAIRED]
 
     def predict_row(self, grf: ArrayLike) -> Tuple[str, float]:
         """

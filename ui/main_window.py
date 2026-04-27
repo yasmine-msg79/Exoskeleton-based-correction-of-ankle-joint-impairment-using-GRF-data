@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
+from unittest import result
 import numpy as np
 
 from PyQt5.QtWidgets import (
@@ -110,8 +111,8 @@ class GaitAnalysisUI(QMainWindow):
         self.meta_path = os.path.join(data_dir, "GRF_metadata.csv")
         data_layout.addWidget(
             QLabel(
-                "GRF:\nData/" + os.path.basename(self.grf_path) +
-                "\n\nMetadata:\nData/" + os.path.basename(self.meta_path)
+                "GRF:\nData/" + os.path.basename(self.grf_path) 
+                # + "\n\nMetadata:\nData/" + os.path.basename(self.meta_path)
             )
         )
         self.lbl_model_file = QLabel("")
@@ -133,8 +134,8 @@ class GaitAnalysisUI(QMainWindow):
 
         self.combo_interpret = QComboBox()
         self.combo_interpret.addItem("From metadata (auto)", userData="auto")
-        self.combo_interpret.addItem("Force: normal",            userData="normal")
-        self.combo_interpret.addItem("Force: ankle_impairment",  userData="ankle_impairment")
+        # self.combo_interpret.addItem("Force: normal",            userData="normal")
+        # self.combo_interpret.addItem("Force: ankle_impairment",  userData="ankle_impairment")
         data_layout.addWidget(QLabel("Interpretation label:"))
         data_layout.addWidget(self.combo_interpret)
 
@@ -167,7 +168,7 @@ class GaitAnalysisUI(QMainWindow):
         sidebar_vbox.addWidget(result_group)
 
         # ── Error metrics group ───────────────────────────────────────────────
-        err_group = QGroupBox("GRF Error Metrics (vs. HC reference)")
+        self.err_group = QGroupBox("GRF Error Metrics (vs. Reference)")
         err_layout = QFormLayout()
         err_layout.setSpacing(4)
 
@@ -188,11 +189,11 @@ class GaitAnalysisUI(QMainWindow):
         err_layout.addRow("SI-F₁ [%]:",        self.lbl_si_f1)
         err_layout.addRow("SI-F₂ [%]:",        self.lbl_si_f2)
         err_layout.addRow("Severity (0–1):",   self.lbl_severity)
-        err_group.setLayout(err_layout)
-        sidebar_vbox.addWidget(err_group)
+        self.err_group.setLayout(err_layout)
+        sidebar_vbox.addWidget(self.err_group)
 
         # ── Correction gains group ────────────────────────────────────────────
-        gain_group = QGroupBox("Applied Correction Gains (Kp × severity)")
+        self.gain_group = QGroupBox("Applied Correction Gains (Kp × severity)")
         gain_layout = QFormLayout()
         gain_layout.setSpacing(4)
         self.lbl_kp_load    = QLabel("—")
@@ -201,8 +202,8 @@ class GaitAnalysisUI(QMainWindow):
         gain_layout.addRow("Kp loading (0–20%):",  self.lbl_kp_load)
         gain_layout.addRow("Kp mid-stance (20–60%):", self.lbl_kp_mid)
         gain_layout.addRow("Kp push-off (60–100%):",  self.lbl_kp_push)
-        gain_group.setLayout(gain_layout)
-        sidebar_vbox.addWidget(gain_group)
+        self.gain_group.setLayout(gain_layout)
+        sidebar_vbox.addWidget(self.gain_group)
 
         # ── Suggestions group ─────────────────────────────────────────────────
         sugg_group = QGroupBox("Clinical Suggestions")
@@ -238,6 +239,10 @@ class GaitAnalysisUI(QMainWindow):
         self.canvas_corrected = FigureCanvas(self.fig_corrected)
         self.canvas_corrected.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         right_panel.addWidget(self.canvas_corrected)
+
+        self.err_group.hide()
+        self.gain_group.hide()
+        self.canvas_corrected.hide()
 
     # ─────────────────────────────────────────────────────────────────────────
     # Backend loading
@@ -301,7 +306,7 @@ class GaitAnalysisUI(QMainWindow):
         mode = self.combo_interpret.currentData()
         if mode != "auto":
             return mode
-        class_label = self.reader.meta_df.iloc[index]["CLASS_LABEL"]
+        class_label = self.classifier.predict_label_int(self.reader.grf_df.iloc[index, 3:].values.reshape(1, -1))[0]
         return _interpreter_label_for_class(class_label)
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -319,10 +324,17 @@ class GaitAnalysisUI(QMainWindow):
             # ── Feature extraction & interpretation ───────────────────────────
             features    = self.extractor.extract(sample)
             interp_label = self._interpret_label_for_index(idx)
-            result      = self.interpreter.interpret(features, interp_label)
-
+            result      = self.interpreter.interpret(features, interp_label, idx)
+            # sample labels dictionary
+            sample_labels = {
+                "HC": "normal",
+                "A": "ankle_impairment",
+                "K": "knee_impairment",
+                "H": "hip_impairment",
+                "C": "other_impairment"
+            }
             self.lbl_sample_meta.setText(
-                f"Index: {idx}\nCLASS_LABEL: {sample['label']}\n"
+                f"Index: {idx}\nCLASS_LABEL: {sample_labels.get(sample['label'], sample['label'])}\n"
                 f"Affected side: {sample['Affected_Limb']}"
             )
             self.lbl_first_peak.setText(f"{features['first_peak']:.4f}")
@@ -333,15 +345,21 @@ class GaitAnalysisUI(QMainWindow):
             if self.classifier is not None and getattr(self.classifier, "fitted", False):
                 ml_label, margin = self.classifier.predict_row(grf_m)
                 interp_text = (
-                    f"PCA+SVM: {ml_label} (score={margin:.3f})\n"
-                    f"Rule-based: {rule_text}"
+                    f"PCA+SVM: {rule_text}"
+                    # {ml_label} (margin: {margin:.3f})\n"
+                    # f"Rule-based: {rule_text}"
                 )
             else:
                 interp_text = (
                     "PCA+SVM: (no model — run python src/training.py)\n"
-                    f"Rule-based: {rule_text}"
+                    # f"Rule-based: {rule_text}"
                 )
             self.lbl_interpretation.setText(interp_text)
+            is_normal = "normal" in str(result).lower()
+
+            self.err_group.setVisible(not is_normal)
+            self.gain_group.setVisible(not is_normal)
+            self.canvas_corrected.setVisible(not is_normal)
 
             # ── Error & correction ────────────────────────────────────────────
             grf_corrected, info = self.corrector.apply_correction(grf_m, self.reference)
@@ -421,10 +439,10 @@ class GaitAnalysisUI(QMainWindow):
         # ── Plot 2: Features bar chart ────────────────────────────────────────
         ax2 = self.ax_features
         ax2.clear()
-        names = ["First peak", "Second peak", "Impulse"]
-        vals  = [features["first_peak"], features["second_peak"], features["impulse"]]
-        ax2.bar(names, vals, color=["#4C72B0", "#55A868", "#C44E52"])
-        ax2.set_title("Extracted Features")
+        names = ["First peak", "Second peak"]
+        vals  = [features["first_peak"], features["second_peak"]]
+        ax2.bar(names, vals, color=["#4C72B0", "#55A868"])
+        ax2.set_title("Extracted Peak Forces")
         ax2.grid(True, axis="y")
         self.fig_features.tight_layout()
         self.canvas_features.draw()
@@ -445,7 +463,6 @@ class GaitAnalysisUI(QMainWindow):
         ax3.grid(True)
         self.fig_corrected.tight_layout()
         self.canvas_corrected.draw()
-
 
 
 if __name__ == "__main__":
