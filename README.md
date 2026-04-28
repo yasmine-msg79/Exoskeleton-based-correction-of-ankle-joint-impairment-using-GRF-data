@@ -103,7 +103,7 @@ The correction follows: `GRF_corrected(t) = GRF_measured(t) + Kp(t) * error(t)`
 **Phase-Dependent Gains:**
 
 | Phase | Stance % | Default Kp | Rationale
-|-----|-----
+|-----|-----|-----|-----|
 | Weight Acceptance | 0-20% | 0.8 | Support loading response
 | Mid-Stance | 20-60% | 0.4 | Allow natural weight transfer
 | Push-Off | 60-100% | 0.8 | Enhance propulsion
