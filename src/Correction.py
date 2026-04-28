@@ -15,12 +15,16 @@ Correction formula (Assist-As-Needed proportional error control):
 
   grf_corrected(t) = grf_measured(t) + Kp(t) · e(t)
     e(t)  = grf_reference(t) − grf_measured(t)          [pointwise error, BW units]
-    Kp(t) = phase_gain × severity_factor                 [dimensionless, 0..1]
-    severity_factor = clamp(RMSE / SEVERITY_THRESHOLD, 0, 1)
+    Kp(t) = phase_gain                                   [dimensionless, 0..1]
+
+  NOTE: severity is NOT multiplied into Kp because e(t) already encodes it —
+  a more impaired patient naturally has a larger e(t).  Multiplying by severity
+  a second time would doubly suppress the correction for mild cases.
+  Severity is retained only as a reporting/diagnostic scalar.
 
 Phase-dependent base gains (from AAN literature, typical range 0.5–1.0):
-  • Weight-acceptance (0–20 % stance) : Kp_loading  = 0.6
-  • Mid-stance        (20–60% stance) : Kp_mid      = 0.1
+  • Weight-acceptance (0–20 % stance) : Kp_loading  = 0.8
+  • Mid-stance        (20–60% stance) : Kp_mid      = 0.4
   • Push-off          (60–100% stance): Kp_pushoff  = 0.8
 
 Severity threshold:
@@ -34,9 +38,10 @@ import numpy as np
 from typing import Dict, Tuple
 
 # ── Tuneable constants ────────────────────────────────────────────────────────
-# Base Kp gains at full severity (impairment fraction = 1.0)
-KP_LOADING  = 0.6   # weight-acceptance phase  (0–20% stance)
-KP_MID      = 0.1   # mid-stance               (20–60% stance)
+# Fraction of the pointwise error e(t) to feed back each phase.
+# 1.0 = fully close the gap in one step; 0.5 = correct half the error, etc.
+KP_LOADING  = 0.8   # weight-acceptance phase  (0–20% stance)
+KP_MID      = 0.4   # mid-stance               (20–60% stance)
 KP_PUSHOFF  = 0.8   # push-off / pre-swing     (60–100% stance)
 
 # RMSE value (in BW units) that maps to severity = 1.0  (Kirtley 2006)
@@ -146,15 +151,19 @@ class Correction:
         Formula (Shi et al. 2019; MDPI Robotics 2022):
             grf_corrected(t) = grf_measured(t) + Kp(t) · e(t)
             e(t) = grf_reference(t) − grf_measured(t)
-            Kp(t) = phase_gain × severity_factor
+            Kp(t) = phase_gain          ← direct fraction of error to correct
+
+        e(t) is proportional to the patient's impairment magnitude;
+        doubling-down with severity would nearly zero-out corrections for
+        mild-to-moderate patients.
 
         Parameters
         ----------
         grf_measured  : patient's raw GRF waveform (1-D, BW-normalised)
         grf_reference : healthy-mean reference waveform
-        kp_loading    : base Kp gain for weight-acceptance (0–20%)
-        kp_mid        : base Kp gain for mid-stance (20–60%)
-        kp_pushoff    : base Kp gain for push-off (60–100%)
+        kp_loading    : fraction of error corrected in weight-acceptance (0–20%)
+        kp_mid        : fraction of error corrected in mid-stance (20–60%)
+        kp_pushoff    : fraction of error corrected in push-off (60–100%)
 
         Returns
         -------
@@ -167,22 +176,21 @@ class Correction:
         n = min(len(grf_m), len(grf_r))
         grf_m, grf_r = grf_m[:n], grf_r[:n]
 
-        # Error metrics
+        # Error metrics (includes severity for reporting)
         metrics = self.compute_error(grf_m, grf_r)
-        severity = metrics["severity"]
         e = grf_r - grf_m                                      # pointwise error
 
         # ── Build phase-dependent Kp mask ─────────────────────────────────────
-        # Gait-cycle percentage for each sample index
+        # Kp is the direct fraction of e(t) to feed back — no severity scaling.
         pct = np.linspace(0, 100, n, endpoint=False)
 
         Kp = np.where(
             pct < 20,                                          # weight-acceptance
-            kp_loading * severity,
+            kp_loading,
             np.where(
                 pct < 60,                                      # mid-stance
-                kp_mid * severity,
-                kp_pushoff * severity,                         # push-off
+                kp_mid,
+                kp_pushoff,                                    # push-off
             ),
         )
 
@@ -191,9 +199,9 @@ class Correction:
 
         info = {
             **metrics,
-            "kp_loading_applied":  float(kp_loading  * severity),
-            "kp_mid_applied":      float(kp_mid      * severity),
-            "kp_pushoff_applied":  float(kp_pushoff  * severity),
+            "kp_loading_applied":  float(kp_loading),
+            "kp_mid_applied":      float(kp_mid),
+            "kp_pushoff_applied":  float(kp_pushoff),
         }
         return grf_corrected, info
 

@@ -193,7 +193,7 @@ class GaitAnalysisUI(QMainWindow):
         sidebar_vbox.addWidget(self.err_group)
 
         # ── Correction gains group ────────────────────────────────────────────
-        self.gain_group = QGroupBox("Applied Correction Gains (Kp × severity)")
+        self.gain_group = QGroupBox("Applied Correction Gains (Kp)")
         gain_layout = QFormLayout()
         gain_layout.setSpacing(4)
         self.lbl_kp_load    = QLabel("—")
@@ -206,7 +206,7 @@ class GaitAnalysisUI(QMainWindow):
         sidebar_vbox.addWidget(self.gain_group)
 
         # ── Suggestions group ─────────────────────────────────────────────────
-        sugg_group = QGroupBox("Clinical Suggestions")
+        sugg_group = QGroupBox("Clinical Summary")
         sugg_layout = QVBoxLayout()
         self.lbl_suggestions = QLabel("—")
         self.lbl_suggestions.setWordWrap(True)
@@ -365,8 +365,22 @@ class GaitAnalysisUI(QMainWindow):
             grf_corrected, info = self.corrector.apply_correction(grf_m, self.reference)
             self._update_error_panel(info)
 
-            # Suggestions use raw CLASS_LABEL so HC maps to "no correction"
+            # ── Post-correction improvement summary ───────────────────────────
+            n_align   = min(len(grf_corrected), len(self.reference))
+            rmse_before = info["rmse"]
+            rmse_after  = float(np.sqrt(np.mean(
+                (self.reference[:n_align] - grf_corrected[:n_align]) ** 2
+            )))
+            improvement = (1.0 - rmse_after / rmse_before) * 100.0 if rmse_before > 0 else 0.0
+
+            # Suggestions: clinical text + post-correction block
             suggestions = self.corrector.suggest(info, sample["label"])
+            if str(sample["label"]).strip() != "HC":
+                suggestions += (
+                    f"\n\nAfter Correction \n"
+                    f"  RMSE:  {rmse_before:.4f} → {rmse_after:.4f} BW\n"
+                    f"  Improvement: {improvement:.1f} %\n"
+                )
             self.lbl_suggestions.setText(suggestions)
 
             # ── Plots ─────────────────────────────────────────────────────────

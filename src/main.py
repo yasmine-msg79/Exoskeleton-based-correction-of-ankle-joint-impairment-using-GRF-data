@@ -1,45 +1,27 @@
-# import numpy as np
-# from SignalReader import SignalSimulator
-# from FeatureExtractor import FeatureExtractor
-# from PhaseDetector import PhaseDetector
-# from Classifier import Classifier
-# from Correction import Correction
+"""
+main.py — project entry point.
+Run this file to launch the GRF Analysis UI.
 
+    python src/main.py
+"""
 
-# class main:
+import sys
+import os
 
-#     def __init__(self):
+# Make sure the ui/ folder is on the path
+_UI  = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "ui"))
+_SRC = os.path.abspath(os.path.dirname(__file__))
 
-#         self.simulator = SignalSimulator()
-#         self.extractor = FeatureExtractor()
-#         self.phase_detector = PhaseDetector()
-#         self.classifier = Classifier()
-#         self.controller = Correction()
+for _p in (_UI, _SRC):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-#     def run(self, heel_peak, toe_peak, hip_range):
+from PyQt5.QtWidgets import QApplication
+from main_window import GaitAnalysisUI
 
-#         signals = self.simulator.simulate(heel_peak, toe_peak, hip_range)
-
-#         features = self.extractor.extract(signals)
-
-#         phase_ranges = self.phase_detector.detectPhase(signals)
-        
-#         phase_states = self.phase_detector.getPhasestates()
-
-#         labels = self.classifier.classify(features)
-
-#         corrections, hip_related = self.controller.suggest(labels)
-
-#         corrected_hip = self.controller.apply_correction(signals, hip_related)
-
-#         results = {
-#             "signals": signals, # the 3 original signals (heel, toe, hip)
-#             "features": features, # the extracted features from the signals
-#             "phases": phase_ranges, # the detected gait phases (stance, swing, heel strike, toe off)
-#             "phase_states": phase_states, # the states of each gait phase
-#             "classification": labels, # verdict (normal, knee impairmant, hip impairment)
-#             "correction": corrections, # the suggested correction based on the classification
-#             "corrected_hip": corrected_hip # corrected hip signal after applying the suggested correction
-#         }
-
-#         return results
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    window = GaitAnalysisUI()
+    window.show()
+    sys.exit(app.exec_())
