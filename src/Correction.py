@@ -1,37 +1,3 @@
-"""
-Correction module — GRF error calculation and Assist-As-Needed correction.
-
-Literature basis
-----------------
-Error metrics:
-  - RMSE:           standard waveform comparison (e.g. GRF prediction papers, NIH/arXiv 2022-23)
-  - Peak errors:    weight-acceptance / push-off impairment (Perry & Burnfield 2010;
-                    Torricelli et al. 2014)
-  - Symmetry Index: Robinson et al. 1987 — SI = 2|X_imp - X_ref| / (X_imp + X_ref) × 100
-
-Correction formula (Assist-As-Needed proportional error control):
-  Banala et al. 2009 (PLLO); Esquenazi et al. 2012; Shi et al. 2019;
-  MDPI Robotics 2022 — phase-dependent impedance / AAN control.
-
-  grf_corrected(t) = grf_measured(t) + Kp(t) · e(t)
-    e(t)  = grf_reference(t) − grf_measured(t)          [pointwise error, BW units]
-    Kp(t) = phase_gain                                   [dimensionless, 0..1]
-
-  NOTE: severity is NOT multiplied into Kp because e(t) already encodes it —
-  a more impaired patient naturally has a larger e(t).  Multiplying by severity
-  a second time would doubly suppress the correction for mild cases.
-  Severity is retained only as a reporting/diagnostic scalar.
-
-Phase-dependent base gains (from AAN literature, typical range 0.5–1.0):
-  • Weight-acceptance (0–20 % stance) : Kp_loading  = 0.8
-  • Mid-stance        (20–60% stance) : Kp_mid      = 0.4
-  • Push-off          (60–100% stance): Kp_pushoff  = 0.8
-
-Severity threshold:
-  SEVERITY_THRESHOLD = 0.3 BW  — published typical maximum GRF deficit between
-  healthy and pathological populations (Kirtley 2006; Whittle 2007).
-"""
-
 from __future__ import annotations
 
 import numpy as np
@@ -44,7 +10,7 @@ KP_LOADING  = 0.8   # weight-acceptance phase  (0–20% stance)
 KP_MID      = 0.4   # mid-stance               (20–60% stance)
 KP_PUSHOFF  = 0.8   # push-off / pre-swing     (60–100% stance)
 
-# RMSE value (in BW units) that maps to severity = 1.0  (Kirtley 2006)
+# RMSE value (in BW units) that maps to severity = 1.0
 SEVERITY_THRESHOLD = 0.3
 
 
@@ -57,8 +23,6 @@ class Correction:
     Computes GRF error metrics against a healthy-mean reference and applies
     a phase-dependent Assist-As-Needed correction to the measured waveform.
     """
-
-    # ── Error computation ─────────────────────────────────────────────────────
 
     def compute_error(
         self,
@@ -99,7 +63,7 @@ class Correction:
         rmse = float(np.sqrt(np.mean(e ** 2)))
         mae  = float(np.mean(np.abs(e)))
 
-        # ── Peak errors  (Robinson et al. 1987) ──────────────────────────────
+        # ── Peak errors   ──────────────────────────────
         f1_ref  = float(np.max(grf_r[:mid]))
         f1_meas = float(np.max(grf_m[:mid]))
         f2_ref  = float(np.max(grf_r[mid:]))
@@ -108,7 +72,7 @@ class Correction:
         delta_f1 = f1_ref  - f1_meas
         delta_f2 = f2_ref  - f2_meas
 
-        # Symmetry Index (%) — Robinson et al. 1987
+        # Symmetry Index (%)
         si_f1 = (
             200.0 * abs(delta_f1) / (f1_ref + f1_meas)
             if (f1_ref + f1_meas) > 0 else 0.0
@@ -121,7 +85,7 @@ class Correction:
         # ── Impulse deficit ───────────────────────────────────────────────────
         delta_impulse = float(np.trapezoid(grf_r) - np.trapezoid(grf_m))
 
-        # ── Severity scalar (Kirtley 2006) ────────────────────────────────────
+        # ── Severity scalar  ────────────────────────────────────
         severity = _clamp(rmse / SEVERITY_THRESHOLD)
 
         return {
@@ -148,10 +112,10 @@ class Correction:
         """
         Apply a phase-dependent Assist-As-Needed correction.
 
-        Formula (Shi et al. 2019; MDPI Robotics 2022):
+        Formula:
             grf_corrected(t) = grf_measured(t) + Kp(t) · e(t)
             e(t) = grf_reference(t) − grf_measured(t)
-            Kp(t) = phase_gain          ← direct fraction of error to correct
+            Kp(t) = phase_gain
 
         e(t) is proportional to the patient's impairment magnitude;
         doubling-down with severity would nearly zero-out corrections for
@@ -214,7 +178,7 @@ class Correction:
     ) -> str:
         """
         Generate clinically meaningful correction suggestions based on quantified
-        error metrics (Perry & Burnfield 2010; Kirtley 2006).
+        error metrics .
 
         Parameters
         ----------
